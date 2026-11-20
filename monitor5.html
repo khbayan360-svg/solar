@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مراقبة الإنفيرترات عن بُعد</title>
+<style>
+:root{--bg:#f3f5f8;--card:#fff;--fg:#1b2430;--mut:#667085;--bd:#d9dfe7;--acc:#1769e0;--ok:#1a9d55;--wait:#6b7a90;--bad:#d92d3a;--off:#8a8f98;--gold:#b7791f}
+[data-t=dark]{--bg:#0e131a;--card:#18202a;--fg:#e6ebf2;--mut:#8d99a8;--bd:#2c3745;--acc:#4c9aff;--ok:#3ecf7a;--wait:#8fa0b8;--bad:#ff5c68;--off:#6d7480;--gold:#f0b85a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,Tahoma,sans-serif}
+button,select,input{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px}
+button{cursor:pointer}button.on,.pri{background:var(--acc);border-color:var(--acc);color:#fff}[hidden]{display:none!important}
+#login{max-width:380px;margin:9vh auto;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:26px}
+#login h1{margin:0 0 18px;font-size:20px}#login input{width:100%;margin-bottom:10px}#login .pri{width:100%}
+.err{color:var(--bad);font-size:13px;min-height:18px}.mut{color:var(--mut);font-size:13px}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--bd)}
+header h1{font-size:17px;margin:0 0 0 10px;flex:1}
+.badge{display:inline-block;border-radius:12px;padding:2px 10px;font-size:12px;color:#fff}
+.b-online{background:var(--ok)}.b-waiting{background:var(--wait)}.b-fault{background:var(--bad)}.b-offline{background:var(--off)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px;align-items:center}
+.sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:0 16px}
+.tile{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 14px}.tile b{display:block;font-size:20px;margin-top:2px}
+.tile.rev b{color:var(--gold)}
+.warn{margin:10px 16px;padding:10px 14px;border-radius:10px;background:#fff3cd;color:#7a5b00;font-size:14px}
+main{padding:6px 16px 30px}
+.cards{display:grid;gap:12px}.cards.c1{grid-template-columns:1fr}.cards.c2{grid-template-columns:1fr 1fr}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;border-top:4px solid var(--wait)}
+.card.s-online{border-top-color:var(--ok)}.card.s-fault{border-top-color:var(--bad)}.card.s-offline{border-top-color:var(--off)}
+.card h3{margin:0 0 4px;font-size:15px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.big{font-size:28px;font-weight:700}.row{display:flex;justify-content:space-between;gap:6px;font-size:13px;padding:2px 0;color:var(--mut)}.row b{color:var(--fg);font-weight:600}
+.row.gold b{color:var(--gold)}
+.chips{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
+.chip{border-radius:10px;padding:8px;color:#fff;text-align:center;font-size:13px}.chip b{display:block;font-size:17px}
+.c-online{background:var(--ok)}.c-waiting{background:var(--wait)}.c-fault{background:var(--bad)}.c-offline{background:var(--off)}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--bd);border-radius:10px;overflow:hidden}
+th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--bd);font-size:13px;white-space:nowrap}th{background:var(--bg);color:var(--mut)}
+tr.dim td{color:var(--mut)}.wrap{overflow-x:auto}h2{font-size:15px;margin:16px 0 8px}
+.sel{display:flex;flex-wrap:wrap;gap:6px}.sel button{min-width:40px;padding:6px 10px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:700px){.two{grid-template-columns:1fr}}
+#kiosk{position:fixed;inset:0;background:var(--bg);z-index:9;padding:16px;overflow:auto}#kiosk .tot{font-size:clamp(34px,7vw,80px);font-weight:700;text-align:center}
+#kiosk .tot2{font-size:clamp(22px,4.5vw,48px);font-weight:600;text-align:center;color:var(--ok);margin-bottom:6px}
+#kiosk .tot3{font-size:clamp(20px,4vw,42px);font-weight:600;text-align:center;color:var(--gold);margin-bottom:14px}
+#kiosk .chips{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}#kiosk .chip{padding:14px}#kiosk .chip b{font-size:26px}
+#kiosk .chip small{display:block;font-size:14px;opacity:.92;margin-top:2px}
+</style>
+</head>
+<body>
+<!-- ============ إعداد الموقع: بيانات مشروع Firebase ============ -->
+<script>
+const CFG = {
+  apiKey: "AIzaSyD-GIKyhhgfsrZJ4HxwHvAx0LDBFNRlwPo",
+  databaseURL: "https://solar-40260-default-rtdb.firebaseio.com",
+  userDomain: "monitor.local",
+  staleSec: 120
+};
+try { Object.assign(CFG, JSON.parse(localStorage.cfg || '{}')); } catch (e) { }
+</script>
+
+<div id="login">
+  <h1>⚡ مراقبة الإنفيرترات عن بُعد</h1>
+  <input id="u" placeholder="اسم المستخدم" autocomplete="username">
+  <input id="p" type="password" placeholder="كلمة السر" autocomplete="current-password">
+  <label class="mut"><input type="checkbox" id="rem" style="width:auto"> تذكرني على هذا الجهاز</label>
+  <div class="err" id="err"></div>
+  <button class="pri" onclick="login()">دخول</button>
+  <p class="mut" style="margin:8px 0"><a href="#" onclick="$('cfgBox').hidden=!$('cfgBox').hidden;return false">⚙ إعداد الاتصال بقاعدة البيانات</a></p>
+  <div id="cfgBox" hidden>
+    <input id="cApi" placeholder="apiKey (يبدأ بـ AIza)" dir="ltr">
+    <input id="cDb" placeholder="databaseURL (https://...)" dir="ltr">
+    <button onclick="saveCfg()" style="width:100%;margin-bottom:8px">حفظ الإعداد في هذا المتصفح</button>
+    <div class="mut" id="cMsg"></div>
+  </div>
+  <p class="mut" style="margin-bottom:0">بدون خادم؟ <a href="#" onclick="startDemo();return false">جرّب بيانات تجريبية</a></p>
+</div>
+
+<div id="app" hidden>
+  <header>
+    <h1 id="site">…</h1>
+    <span id="grid" class="badge"></span>
+    <span class="mut" id="upd"></span>
+    <button onclick="toggleTheme()">🌓</button>
+    <button onclick="logout()">خروج</button>
+  </header>
+  <div class="bar">
+    <button id="tdev" class="on" onclick="setTab('dev')">الإنفيرترات</button>
+    <button id="tdet" onclick="setTab('det')">السترينغ والخرج</button>
+    <button id="tout" onclick="setTab('out')">سجل انقطاع الكهرباء</button>
+  </div>
+  <div id="warn" class="warn" hidden></div>
+  <div class="sum" id="sum"></div>
+
+  <div id="pdev">
+    <div class="bar">
+      <button onclick="openKiosk()">🖥 شاشة العرض</button>
+      <button id="col1" onclick="setCols(1)">▤ عمود</button>
+      <button id="col2" onclick="setCols(2)">▥ عمودان</button>
+      <button id="revBtn" onclick="toggleRev()">💰 الإيراد: معطّل</button>
+      <span id="revIn" hidden>
+        سعر الكيلوواط ساعة <input id="tar" type="number" min="0" step="any" style="width:90px" oninput="setTar(this.value)">
+        العملة <input id="cur" style="width:70px" oninput="setCur(this.value)">
+      </span>
+    </div>
+    <main id="devs"></main>
+  </div>
+
+  <div id="pdet" hidden><main id="dets"></main></div>
+
+  <div id="pout" hidden>
+    <div class="bar">
+      <select id="orng" onchange="S.rng=+this.value;render()">
+        <option value="7">آخر 7 أيام</option><option value="30" selected>آخر 30 يومًا</option><option value="90">آخر 90 يومًا</option><option value="0">الكل</option>
+      </select>
+      <button onclick="csv()">⬇ تصدير CSV</button>
+      <span class="mut">الانقطاع = ظهور عطل على جميع الأجهزة المتصلة، وينتهي عندما يخرج أول جهاز من حالة العطل.</span>
+    </div>
+    <main id="outs"></main>
+  </div>
+</div>
+<div id="kiosk" hidden></div>
+
+<script>
+const S = { tok: null, ref: null, exp: 0, data: null, det: {}, detT: 0, outs: [], tab: 'dev', rng: 30, demo: false, timer: null, sel: null,
+  cols: +localStorage.cols === 2 ? 2 : 1, rev: localStorage.rev === '1', tar: parseFloat(localStorage.tar) || 0, cur: localStorage.cur || 'ل.س' };
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const SL = { online: 'طبيعي', waiting: 'انتظار', fault: 'عطل', offline: 'غير متصل' };
+const BR = { growatt: 'Growatt', solax: 'Solax MIC/PRO', 'solax-fth': 'Solax FORTH/MEGA' };
+const fx = (v, d) => (v == null || isNaN(v)) ? '—' : Number(v).toLocaleString('en', { minimumFractionDigits: d, maximumFractionDigits: d });
+const dt = t => t ? new Date(t).toLocaleString('en-GB', { hour12: false }) : '—';
+const money = k => { const v = (k || 0) * S.tar; return fx(v, v < 100 ? 2 : 0) + ' ' + S.cur; };
+function dur(sec) { sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return (h ? h + ' س ' : '') + (m || h ? m + ' د ' : '') + (h ? '' : s + ' ث'); }
+
+/* ---------- الاتصال بالخادم (Firebase REST) ---------- */
+async function fbAuth(url, body) {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json(); if (!r.ok) throw new Error((j.error && j.error.message) || 'AUTH'); return j;
+}
+function uidOf(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).user_id; } catch (e) { return ''; } }
+function setTok(j) {
+  S.tok = j.idToken || j.id_token; S.uid = uidOf(S.tok); S.ref = j.refreshToken || j.refresh_token; S.exp = Date.now() + (+j.expiresIn || +j.expires_in || 3600) * 1000;
+  const st = $('rem').checked || localStorage.rt ? localStorage : sessionStorage; st.rt = S.ref;
+}
+async function token() {
+  if (S.demo) return null;
+  if (S.tok && Date.now() < S.exp - 60000) return S.tok;
+  const j = await fbAuth('https://securetoken.googleapis.com/v1/token?key=' + CFG.apiKey, { grant_type: 'refresh_token', refresh_token: S.ref });
+  setTok(j); return S.tok;
+}
+async function db(path) {
+  const t = await token();
+  const r = await fetch(CFG.databaseURL.replace(/\/$/, '') + path + (path.includes('?') ? '&' : '?') + 'auth=' + t);
+  if (!r.ok) { let b = ''; try { b = await r.text(); } catch (e) { } throw new Error('DB ' + r.status + ' ' + b.slice(0, 60)); } return r.json();
+}
+async function dbw(method, path, body) {
+  const t = await token();
+  const r = await fetch(CFG.databaseURL.replace(/\/$/, '') + path + '.json?auth=' + t, { method: method, body: body === undefined ? undefined : JSON.stringify(body) });
+  if (!r.ok) throw new Error('DB ' + r.status);
+  return r.json();
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+/* طلب قراءة السترينغ و PV: مرة واحدة لجهاز واحد، ثم ينتظر الرد ويتوقف (لا طلب متكرر) */
+async function requestDetails(a) {
+  if (S.req && (S.req.pending || Date.now() < (S.req.until || 0))) return;
+  const t = Date.now(); S.req = { addr: a, t: t, pending: true, msg: 'تم إرسال الطلب — بانتظار البرنامج المحلي…' }; render();
+  try {
+    if (S.demo) { await sleep(1200); S.det[a] = demoDet()[a]; S.req = { addr: a, pending: false, until: Date.now() + 3000, msg: '✔ تم التحديث (تجريبي)' }; render(); return; }
+    await dbw('PUT', '/requests/' + a, { t: t });
+  } catch (e) {
+    S.req = { addr: a, pending: false, msg: 'تعذر إرسال الطلب (' + e.message + ') — أضف قاعدة requests في Rules كما في الشرح.' }; render(); return;
+  }
+  const end = Date.now() + 90000;
+  while (Date.now() < end) {
+    await sleep(S.pollMs || 4000);
+    let d = null; try { d = await db('/details/' + a + '.json'); } catch (e) { }
+    if (d && d.rt && d.rt >= t) { S.det[a] = d; S.req = { addr: a, pending: false, until: Date.now() + 20000, msg: d.err ? '⚠ ' + d.err : '✔ تم التحديث' }; render(); return; }
+  }
+  S.req = { addr: a, pending: false, until: Date.now() + 5000, msg: 'لم يستجب البرنامج المحلي خلال 90 ثانية — تأكد أنه يعمل ومتصل بالإنترنت.' }; render();
+}
+function saveCfg() {
+  const a = $('cApi').value.trim(), d = $('cDb').value.trim().replace(/\/$/, '');
+  if (!/^https:\/\/.+/.test(d)) { $('cMsg').textContent = 'رابط قاعدة البيانات يجب أن يبدأ بـ https://'; return; }
+  if (!a) { $('cMsg').textContent = 'أدخل apiKey'; return; }
+  localStorage.cfg = JSON.stringify({ apiKey: a, databaseURL: d }); Object.assign(CFG, { apiKey: a, databaseURL: d });
+  $('cMsg').textContent = '✔ تم الحفظ — يمكنك الدخول الآن'; $('err').textContent = '';
+}
+async function login() {
+  $('err').textContent = '';
+  if (!CFG.apiKey || !CFG.databaseURL) { $('err').textContent = 'اضغط «إعداد الاتصال بقاعدة البيانات» أولًا.'; $('cfgBox').hidden = false; return; }
+  try {
+    const u = $('u').value.trim().toLowerCase(), j = await fbAuth('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + CFG.apiKey,
+      { email: u + '@' + CFG.userDomain, password: $('p').value, returnSecureToken: true });
+    setTok(j); enter();
+  } catch (e) { $('err').textContent = /INVALID|EMAIL|PASSWORD|CREDENTIAL/.test(e.message) ? 'اسم المستخدم أو كلمة السر غير صحيحة' : 'تعذر الدخول: ' + e.message; }
+}
+function logout() { localStorage.removeItem('rt'); sessionStorage.removeItem('rt'); clearInterval(S.timer); location.reload(); }
+async function resume() {
+  S.ref = localStorage.rt || sessionStorage.rt; if (!S.ref || !CFG.apiKey) return;
+  try { await token(); enter(); } catch (e) { localStorage.removeItem('rt'); }
+}
+
+/* ---------- الجلب ---------- */
+function enter() {
+  $('login').hidden = true; $('app').hidden = false;
+  $('tar').value = S.tar || ''; $('cur').value = S.cur; uiPrefs();
+  refresh(); clearInterval(S.timer); S.timer = setInterval(() => { if (!document.hidden) refresh(); }, 10000);
+}
+async function refresh() {
+  try {
+    S.data = S.demo ? demoData() : await db('/site.json');
+    if (S.tab === 'det' && Date.now() - S.detT > 25000) { S.det = (S.demo ? demoDet() : await db('/details.json')) || {}; S.detT = Date.now(); }
+    if (S.tab === 'out') S.outs = S.demo ? demoOuts() : Object.entries(await db('/outages.json?orderBy="$key"&limitToLast=500') || {}).filter(([k, v]) => v).map(([k, v]) => Object.assign({ k }, v));
+    S.fail = false;
+  } catch (e) { S.fail = e.message; }
+  try { render(); } catch (e) { const w = $('warn'); w.hidden = false; w.textContent = 'خطأ في عرض البيانات: ' + e.message; }
+}
+function invs() {
+  const d = S.data || {}, now = Date.now();
+  return Object.entries(d.inverters || {}).filter(([a, v]) => v && typeof v === 'object').map(([a, v]) => {
+    let s = v.s; if (v.u && now - v.u > 30 * 60000) s = 'offline';
+    return Object.assign({ a: +a }, v, { s: s || 'offline' });
+  }).sort((a, b) => a.a - b.a);
+}
+function setTab(t) {
+  S.tab = t; S.detT = 0;
+  ['dev', 'det', 'out'].forEach(k => { $('p' + k).hidden = k !== t; $('t' + k).classList.toggle('on', k === t); });
+  refresh();
+}
+function toggleTheme() { const n = document.documentElement.dataset.t === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.t = n; localStorage.th = n; }
+
+/* ---------- التفضيلات: الأعمدة + الإيراد ---------- */
+function uiPrefs() {
+  $('col1').classList.toggle('on', S.cols === 1); $('col2').classList.toggle('on', S.cols === 2);
+  $('revBtn').textContent = '💰 الإيراد: ' + (S.rev ? 'مفعّل' : 'معطّل'); $('revBtn').classList.toggle('on', S.rev); $('revIn').hidden = !S.rev;
+}
+function setCols(n) { S.cols = n; localStorage.cols = n; uiPrefs(); render(); }
+function toggleRev() { S.rev = !S.rev; localStorage.rev = S.rev ? '1' : '0'; uiPrefs(); render(); }
+function setTar(v) { S.tar = parseFloat(v) || 0; localStorage.tar = S.tar; render(); }
+function setCur(v) { S.cur = v || 'ل.س'; localStorage.cur = S.cur; render(); }
+
+/* ---------- العرض ---------- */
+const badge = s => '<span class="badge b-' + s + '">' + SL[s] + '</span>';
+function render() {
+  const d = S.data || {}, L = invs(), now = Date.now();
+  $('site').textContent = d.name || 'مراقبة الإنفيرترات';
+  const down = d.grid === 'down';
+  $('grid').textContent = down ? '⚡ الكهرباء منقطعة' : '⚡ الكهرباء متوفرة'; $('grid').className = 'badge ' + (down ? 'b-fault' : 'b-online');
+  const stale = d.ts && (now - d.ts) / 1000 > CFG.staleSec;
+  $('upd').textContent = d.ts ? 'آخر تحديث: ' + dt(d.ts) : '';
+  const w = $('warn'); w.hidden = !(stale || S.fail || !d.ts);
+  w.textContent = S.fail ? 'تعذر جلب البيانات: ' + S.fail + ' — UID الحساب الحالي: ' + (S.uid || '?') : (!d.ts ? 'لا توجد بيانات بعد — شغّل رفع البيانات من البرنامج المحلي.' : 'المحطة غير متصلة بالإنترنت منذ ' + dur((now - d.ts) / 1000) + ' — البيانات المعروضة قديمة.');
+  const cnt = k => L.filter(x => x.s === k).length;
+  const tp = L.reduce((a, x) => a + (x.s === 'online' || x.s === 'waiting' ? (x.p || 0) : 0), 0);
+  const te = L.reduce((a, x) => a + (x.e || 0), 0), tt = L.reduce((a, x) => a + (x.E || 0), 0);
+  const tiles = [['القدرة الإجمالية', fx(tp / 1000, 1) + ' kW'], ['طاقة اليوم', fx(te, 1) + ' kWh'], ['الطاقة الكلية', fx(tt, 1) + ' kWh']];
+  if (S.rev) tiles.push(['الإيراد اليومي', S.tar ? money(te) : 'أدخل السعر']);
+  tiles.push(['طبيعي', cnt('online')], ['انتظار', cnt('waiting')], ['عطل', cnt('fault')], ['غير متصل', cnt('offline')]);
+  $('sum').innerHTML = tiles.map(x => '<div class="tile' + (x[0] === 'الإيراد اليومي' ? ' rev' : '') + '"><span class="mut">' + x[0] + '</span><b>' + x[1] + '</b></div>').join('');
+  if (S.tab === 'out') return renderOuts();
+  if (S.tab === 'det') renderDet(L);
+  else $('devs').innerHTML = !L.length ? '<p class="mut">لا توجد أجهزة.</p>' : cards(L);
+  if (!$('kiosk').hidden) kiosk(L, tp, te);
+}
+function cards(L) {
+  return '<div class="cards c' + S.cols + '">' + L.map(x => '<div class="card s-' + x.s + '"><h3><span>' + esc(x.n) + '</span>' + badge(x.s) + '</h3><div class="mut">#' + x.a + ' · ' + esc(BR[x.b] || x.b) + '</div>' +
+    '<div class="big">' + fx((x.p || 0) / 1000, 1) + ' <small class="mut">kW</small></div>' +
+    '<div class="row">طاقة اليوم<b>' + fx(x.e, 1) + ' kWh</b></div><div class="row">الطاقة الكلية<b>' + fx(x.E, 1) + ' kWh</b></div>' +
+    (S.rev && S.tar ? '<div class="row gold">إيراد اليوم<b>' + money(x.e) + '</b></div>' : '') +
+    '<div class="row">الحرارة<b>' + fx(x.t, 1) + ' °م</b></div><div class="row">التردد<b>' + fx(x.f, 2) + ' Hz</b></div>' +
+    (x.s === 'fault' ? '<div class="row" style="color:var(--bad)">كود العطل<b style="color:var(--bad)">' + esc(x.c) + '</b></div>' : '') + '</div>').join('') + '</div>';
+}
+
+/* ---------- شاشة العرض ---------- */
+function kiosk(L, tp, te) {
+  $('kiosk').innerHTML = '<button onclick="closeKiosk()" style="float:left">✕ إغلاق</button><div class="mut" style="text-align:center">' + esc((S.data || {}).name || '') + '</div>' +
+    '<div class="tot">' + fx(tp / 1000, 1) + ' kW</div><div class="tot2">' + fx(te, 1) + ' kWh <span class="mut">الإنتاج اليومي</span></div>' +
+    (S.rev && S.tar ? '<div class="tot3">' + money(te) + ' <span class="mut">الإيراد اليومي</span></div>' : '<div style="height:8px"></div>') + '<div class="chips">' +
+    L.map(x => '<div class="chip c-' + x.s + '">' + esc(x.n) + '<b>' + fx((x.p || 0) / 1000, 1) + ' kW</b><small>' + fx(x.e, 1) + ' kWh اليوم</small>' + (S.rev && S.tar ? '<small>' + money(x.e) + '</small>' : '') + '</div>').join('') + '</div>';
+}
+function openKiosk() { $('kiosk').hidden = false; render(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => { }); }
+function closeKiosk() { $('kiosk').hidden = true; if (document.fullscreenElement) document.exitFullscreen(); }
+
+/* ---------- تبويب السترينغ والخرج ---------- */
+function renderDet(L) {
+  if (!L.length) { $('dets').innerHTML = '<p class="mut">لا توجد أجهزة.</p>'; return; }
+  if (!S.sel || !L.some(x => x.a === S.sel)) S.sel = L[0].a;
+  const arr3 = (a, d) => [0, 1, 2].map(i => a && a[i] != null ? fx(a[i], d) : '—');
+  const out = '<h2>جهد الخرج والتيار والتردد لكل إنفيرتر</h2><div class="wrap"><table><thead><tr><th>#</th><th>الاسم</th><th>الحالة</th><th>جهد A</th><th>جهد B</th><th>جهد C</th><th>تيار A</th><th>تيار B</th><th>تيار C</th><th>التردد Hz</th></tr></thead><tbody>' +
+    L.map(x => '<tr class="' + (x.s === 'offline' ? 'dim' : '') + '"><td>' + x.a + '</td><td>' + esc(x.n) + '</td><td>' + badge(x.s) + '</td>' + arr3(x.v, 1).map(v => '<td>' + v + ' V</td>').join('') + arr3(x.i, 2).map(v => '<td>' + v + ' A</td>').join('') + '<td>' + fx(x.f, 2) + '</td></tr>').join('') + '</tbody></table></div>';
+  const sel = '<h2>جهود وتيارات المداخل (PV) والسترينغات</h2><div class="sel">' + L.map(x => '<button class="' + (x.a === S.sel ? 'on' : '') + '" onclick="S.sel=' + x.a + ';render()">' + x.a + '</button>').join('') + '</div>';
+  const x = L.find(q => q.a === S.sel), d = S.det[S.sel], rq = S.req && S.req.addr === S.sel ? S.req : null;
+  const busy = rq && (rq.pending || Date.now() < (rq.until || 0));
+  const btn = '<div class="bar" style="padding:0 0 8px"><button class="pri" onclick="requestDetails(' + S.sel + ')"' + (busy ? ' disabled style="opacity:.6"' : '') + '>🔄 طلب قراءة السترينغ و PV (مرة واحدة)</button><span class="mut">' + esc(rq ? rq.msg : 'يُنفَّذ الطلب مرة واحدة ثم يتوقف.') + '</span></div>';
+  let body;
+  if (!d) body = '<p class="mut">لا توجد قراءة محفوظة للجهاز ' + esc(x.n) + ' — اضغط زر الطلب.</p>';
+  else if (d.err) body = '<div class="warn" style="margin:0 0 8px">تعذرت القراءة: ' + esc(d.err) + '</div>';
+  else {
+    const pv = Array.from(d.pv || []).filter(r => r), st = Array.from(d.st || []).filter(r => r);
+    const pvT = '<div class="wrap"><table><thead><tr><th>PV</th><th>الجهد</th><th>التيار</th><th>القدرة</th></tr></thead><tbody>' + (pv.map(r => '<tr class="' + (r[2] > 0.05 ? '' : 'dim') + '"><td>PV' + r[0] + '</td><td>' + fx(r[1], 1) + ' V</td><td>' + fx(r[2], 2) + ' A</td><td>' + fx(r[1] * r[2], 0) + ' W</td></tr>').join('') || '<tr><td colspan="4" class="mut">لا توجد بيانات</td></tr>') + '</tbody></table></div>';
+    const stT = '<div class="wrap"><table><thead><tr><th>السترينغ</th><th>الجهد</th><th>التيار</th><th>الحالة</th></tr></thead><tbody>' + (st.map(r => '<tr class="' + (r[2] > 0.3 ? '' : 'dim') + '"><td>String ' + r[0] + '</td><td>' + (r[1] == null ? '—' : fx(r[1], 1) + ' V') + '</td><td>' + fx(r[2], 2) + ' A</td><td>' + (r[2] > 0.3 ? 'يعمل' : 'لا تيار') + '</td></tr>').join('') || '<tr><td colspan="4" class="mut">لا توجد سترينغات عاملة محفوظة لهذا الجهاز' + (d.se ? ' — خطأ القراءة: ' + esc(d.se) : '') + '. حدّدها من البرنامج المحلي (زر «جهود وتيارات السترينغ» ثم «حفظ السترينغات العاملة»).</td></tr>') + '</tbody></table></div>';
+    body = '<div class="mut" style="margin-bottom:8px">' + esc(x.n) + ' — آخر قراءة للتفاصيل: ' + dt(d.t) + ' (قبل ' + dur((Date.now() - d.t) / 1000) + ') — جهد السترينغ مأخوذ من جهد PV المقابل (' + (d.per || 2) + ' سترينغ لكل PV).</div><div class="two"><div><b>مداخل PV</b>' + pvT + '</div><div><b>السترينغات العاملة (' + st.length + ')</b>' + stT + '</div></div>';
+  }
+  $('dets').innerHTML = out + sel + btn + body;
+}
+
+/* ---------- سجل انقطاع الكهرباء ---------- */
+function outList() { const lim = S.rng ? Date.now() - S.rng * 864e5 : 0; return S.outs.filter(o => o.s >= lim).sort((a, b) => b.s - a.s); }
+function renderOuts() {
+  const L = outList(), now = Date.now(), tot = L.reduce((a, o) => a + ((o.e || now) - o.s) / 1000, 0), mx = L.reduce((a, o) => Math.max(a, ((o.e || now) - o.s) / 1000), 0);
+  const open = L.find(o => !o.e);
+  $('outs').innerHTML = '<div class="sum" style="padding:0 0 12px">' + [['عدد الانقطاعات', L.length], ['إجمالي مدة الانقطاع', dur(tot)], ['أطول انقطاع', dur(mx)], ['الحالة الآن', open ? 'منقطعة منذ ' + dur((now - open.s) / 1000) : 'متوفرة']]
+    .map(x => '<div class="tile"><span class="mut">' + x[0] + '</span><b style="font-size:18px">' + x[1] + '</b></div>').join('') + '</div>' +
+    (L.length ? '<div class="wrap"><table><thead><tr><th>#</th><th>بداية الانقطاع</th><th>عودة الكهرباء</th><th>المدة</th><th>أجهزة متأثرة</th></tr></thead><tbody>' +
+      L.map((o, i) => '<tr><td>' + (L.length - i) + '</td><td>' + dt(o.s) + '</td><td>' + (o.e ? dt(o.e) : '<span class="badge b-fault">مستمر</span>') + '</td><td>' + dur(((o.e || now) - o.s) / 1000) + '</td><td>' + (o.n || '—') + '</td></tr>').join('') + '</tbody></table></div>'
+      : '<p class="mut">لا توجد انقطاعات في هذه الفترة.</p>');
+}
+function csv() {
+  const rows = [['بداية', 'نهاية', 'المدة (ثانية)', 'أجهزة']].concat(outList().map(o => [dt(o.s), o.e ? dt(o.e) : 'مستمر', Math.round(((o.e || Date.now()) - o.s) / 1000), o.n || '']));
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' })); a.download = 'outages.csv'; a.click();
+}
+
+/* ---------- بيانات تجريبية ---------- */
+function demoData() {
+  const o = {}, st = ['online', 'online', 'online', 'online', 'waiting', 'online', 'online', 'fault', 'online', 'online', 'online', 'waiting', 'online', 'offline'];
+  for (let i = 1; i <= 14; i++) { const s = st[i - 1]; o[i] = { n: 'إنفيرتر ' + i, b: i === 11 || i === 12 ? 'solax-fth' : 'growatt', s: s, p: s === 'online' ? 38000 + Math.round(Math.random() * 9000) : 0, e: 210.4 + i * 9.3, E: 95000.7 + i * 2000.3, t: 45 + i, f: 50, v: [229.5, 230.1, 228.8], i: [s === 'online' ? 60.2 : 0, 59.8, 61.1], c: s === 'fault' ? 24 : 0, u: Date.now() - (s === 'offline' ? 4e6 : 3000) }; }
+  return { name: 'محطة تجريبية', ts: Date.now(), grid: 'up', inverters: o };
+}
+function demoDet() {
+  const o = {};
+  for (let i = 1; i <= 14; i++) o[i] = { t: Date.now() - 60000 * i, pv: [1, 2, 3, 4, 5, 6].map(c => [c, 560 + c * 3, 18 + c * 0.4]), st: Array.from({ length: i === 11 || i === 12 ? 12 : 12 }, (_, k) => [k + 1, i === 11 ? null : 560 + k, k === 5 ? 0 : 9 + k * 0.1]) };
+  return o;
+}
+function demoOuts() { const n = Date.now(), h = 36e5; return [[2, 0.5], [30, 1.2], [75, 0.25], [150, 2.1], [300, 0.7], [500, 1.6]].map(([a, d], i) => ({ k: i, s: n - a * h, e: n - a * h + d * h, n: 14 })); }
+function startDemo() { S.demo = true; enter(); }
+
+if (localStorage.th) document.documentElement.dataset.t = localStorage.th; else if (matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.t = 'dark';
+$('cApi').value = CFG.apiKey || ''; $('cDb').value = CFG.databaseURL || '';
+$('p').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+resume();
+</script>
+</body>
+</html>
